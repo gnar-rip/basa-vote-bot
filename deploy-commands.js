@@ -17,6 +17,12 @@ const commands = [
         .setRequired(true)
     ),
   new SlashCommandBuilder()
+    .setName("calendar")
+    .setDescription("List the upcoming BASA events"),
+  new SlashCommandBuilder()
+    .setName("history")
+    .setDescription("Show the last 5 BASA board votes"),
+  new SlashCommandBuilder()
     .setName("close-vote")
     .setDescription("Close the most recent BASA board vote.")
 ].map(command => command.toJSON());

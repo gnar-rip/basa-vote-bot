@@ -1,6 +1,6 @@
 require("dotenv").config();
 
-const { appendVoteToSheet } = require("./googleSheets");
+const { appendVoteToSheet, getVoteHistory } = require("./googleSheets");
 
 const {
   Client,
@@ -30,6 +30,50 @@ client.on(Events.InteractionCreate, async (interaction) => {
   if (interaction.isChatInputCommand()) {
     if (interaction.commandName === "ping") {
       return interaction.reply("BASA vote bot is online.");
+    }
+
+    if (interaction.commandName === "history") {
+      if (!hasBoardRole(interaction)) {
+        return interaction.reply({
+          content: "Only BASA board members can view vote history.",
+          ephemeral: true,
+        });
+      }
+
+      try {
+        const history = await getVoteHistory();
+
+        if (history.length === 0) {
+          return interaction.reply({
+            content: "No vote history found.",
+            ephemeral: true,
+          });
+        }
+
+        const message = history
+          .map(
+            (vote, index) => `**${index + 1}. ${vote.result}**
+    ${vote.question}
+
+    Yes: ${vote.yes}
+    No: ${vote.no}
+    Closed By: ${vote.closedBy}
+    Date: ${vote.date}`
+          )
+          .join("\n\n---\n\n");
+
+        return interaction.reply({
+          content: `**Recent BASA Votes**\n\n${message}`,
+          ephemeral: true,
+        });
+      } catch (error) {
+        console.error("Failed to fetch vote history:", error);
+
+        return interaction.reply({
+          content: "Could not fetch vote history from the BASA Vote Log.",
+          ephemeral: true,
+        });
+      }
     }
 
     if (interaction.commandName === "vote") {

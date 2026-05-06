@@ -49,6 +49,30 @@ async function appendVoteToSheet({ question, yesCount, noCount, result, closedBy
   });
 }
 
+async function getVoteHistory() {
+    const auth = get0AuthClient();
+    const sheets = google.sheets({ version: "v4", auth });
+
+    const response = await sheets.spreadsheets.value.get({
+      spreadsheetId: process.env.GOOGLE_SHEET_ID,
+      range: "Sheet1!A3:H",
+    });
+
+    const rows = response.data.values || [];
+
+    return rows.slice(-5).reverse().map((row) => ({
+      date: row[0] || "",
+      question: row[1] || "",
+      yes: row[2] || "0",
+      no: row[3] || "0",
+      result: row[4] || "",
+      closedBy: row[5] || "",
+      yesVoters: row[6] || "",
+      noVoters: row[7] || "",
+    }));
+}
+
 module.exports = {
   appendVoteToSheet,
+  getVoteHistory,
 };
