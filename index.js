@@ -1,6 +1,7 @@
 require("dotenv").config();
 
 const { appendVoteToSheet, getVoteHistory } = require("./googleSheets");
+const { getUpcomingEvents } = require("./googleCalendar");
 
 const {
   Client,
@@ -21,15 +22,72 @@ function hasBoardRole(interaction) {
   return interaction.member.roles.cache.has(process.env.BOARD_ROLE_ID);
 }
 
+function formatEventDate(dateString) {
+  if (!dateString) return "Date not listed";
+
+  const date = new Date(dateString);
+
+  return date.toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 client.once("ready", () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
-  // Slash commands
   if (interaction.isChatInputCommand()) {
     if (interaction.commandName === "ping") {
       return interaction.reply("BASA vote bot is online.");
+    }
+
+    if (interaction.commandName === "calendar") {
+      if (!hasBoardRole(interaction)) {
+        return interaction.reply({
+          content: "Only BASA board members can view the internal calendar.",
+          ephemeral: true,
+        });
+      }
+
+      try {
+        const events = await getUpcomingEvents();
+
+        if (events.length === 0) {
+          return interaction.reply({
+            content: "No upcoming BASA calendar events found.",
+            ephemeral: true,
+          });
+        }
+
+        const message = events
+          .map((event, index) => {
+            const location = event.location
+              ? `\nLocation: ${event.location}`
+              : "";
+
+            return `**${index + 1}. ${event.title}**
+${formatEventDate(event.start)}${location}`;
+          })
+          .join("\n\n---\n\n");
+
+        return interaction.reply({
+          content: `**Upcoming BASA Events**\n\n${message}`,
+          ephemeral: true,
+        });
+      } catch (error) {
+        console.error("Failed to fetch calendar events:", error);
+
+        return interaction.reply({
+          content: "Could not fetch events from the BASA calendar.",
+          ephemeral: true,
+        });
+      }
     }
 
     if (interaction.commandName === "history") {
@@ -53,12 +111,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const message = history
           .map(
             (vote, index) => `**${index + 1}. ${vote.result}**
-    ${vote.question}
+${vote.question}
 
-    Yes: ${vote.yes}
-    No: ${vote.no}
-    Closed By: ${vote.closedBy}
-    Date: ${vote.date}`
+Yes: ${vote.yes}
+No: ${vote.no}
+Closed By: ${vote.closedBy}
+Date: ${vote.date}`
           )
           .join("\n\n---\n\n");
 
@@ -164,11 +222,17 @@ No: ${noCount}
       });
 
       const yesVoters = [...voteData.yes]
-        .map((userId) => interaction.guild.members.cache.get(userId)?.user.username || userId)
+        .map(
+          (userId) =>
+            interaction.guild.members.cache.get(userId)?.user.username || userId
+        )
         .join(", ");
 
       const noVoters = [...voteData.no]
-        .map((userId) => interaction.guild.members.cache.get(userId)?.user.username || userId)
+        .map(
+          (userId) =>
+            interaction.guild.members.cache.get(userId)?.user.username || userId
+        )
         .join(", ");
 
       await appendVoteToSheet({
@@ -188,7 +252,6 @@ No: ${noCount}
     }
   }
 
-  // Button clicks
   if (interaction.isButton()) {
     if (!hasBoardRole(interaction)) {
       return interaction.reply({

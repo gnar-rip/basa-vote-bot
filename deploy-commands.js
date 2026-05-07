@@ -18,7 +18,7 @@ const commands = [
     ),
   new SlashCommandBuilder()
     .setName("calendar")
-    .setDescription("List the upcoming BASA events"),
+    .setDescription("List upcoming BASA events"),
   new SlashCommandBuilder()
     .setName("history")
     .setDescription("Show the last 5 BASA board votes"),
