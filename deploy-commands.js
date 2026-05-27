@@ -23,6 +23,16 @@ const commands = [
     .setName("history")
     .setDescription("Show the last 5 BASA board votes"),
   new SlashCommandBuilder()
+    .setName("scrape")
+    .setDescription("Upload receipt attachments from the finance channel to Drive.")
+    .addIntegerOption(option =>
+      option
+        .setName("limit")
+        .setDescription("Number of recent messages to scan. Defaults to 100.")
+        .setMinValue(1)
+        .setMaxValue(500)
+    ),
+  new SlashCommandBuilder()
     .setName("close-vote")
     .setDescription("Close the most recent BASA board vote.")
 ].map(command => command.toJSON());

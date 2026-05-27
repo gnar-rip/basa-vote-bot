@@ -2,8 +2,15 @@ const fs = require("fs");
 const path = require("path");
 const { google } = require("googleapis");
 
-const TOKEN_PATH = path.join(__dirname, "token.json");
-const CREDENTIALS_PATH = path.join(__dirname, "oauth-client.json");
+const TOKEN_PATH =
+  process.env.NODE_ENV === "production"
+    ? "/app/credentials/token.json"
+    : path.join(__dirname, "token.json");
+
+const CREDENTIALS_PATH =
+  process.env.NODE_ENV === "production"
+    ? "/app/credentials/oauth-client.json"
+    : path.join(__dirname, "oauth-client.json");
 
 function getOAuthClient() {
   const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, "utf8"));
@@ -22,13 +29,25 @@ function getOAuthClient() {
   return oAuth2Client;
 }
 
-async function appendVoteToSheet({ question, yesCount, noCount, result, closedBy, yesVoters, noVoters }) {
+function getReceiptLogSheetName() {
+  return process.env.RECEIPT_LOG_SHEET_NAME || "receiptLog";
+}
+
+async function appendVoteToSheet({
+  question,
+  yesCount,
+  noCount,
+  result,
+  closedBy,
+  yesVoters,
+  noVoters,
+}) {
   const auth = getOAuthClient();
   const sheets = google.sheets({ version: "v4", auth });
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: process.env.GOOGLE_SHEET_ID,
-    range: "Sheet1!A3:F",
+    range: "Sheet1!A3:H",
     valueInputOption: "USER_ENTERED",
     requestBody: {
       values: [
@@ -50,10 +69,10 @@ async function appendVoteToSheet({ question, yesCount, noCount, result, closedBy
 }
 
 async function getVoteHistory() {
-    const auth = get0AuthClient();
+    const auth = getOAuthClient();
     const sheets = google.sheets({ version: "v4", auth });
 
-    const response = await sheets.spreadsheets.value.get({
+    const response = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEET_ID,
       range: "Sheet1!A3:H",
     });
@@ -72,7 +91,39 @@ async function getVoteHistory() {
     }));
 }
 
+async function getUploadedReceiptAttachmentIds() {
+  const auth = getOAuthClient();
+  const sheets = google.sheets({ version: "v4", auth });
+  const sheetName = getReceiptLogSheetName();
+
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: process.env.GOOGLE_SHEET_ID,
+    range: `${sheetName}!K2:K`,
+  });
+
+  return new Set((response.data.values || []).flat().filter(Boolean));
+}
+
+async function appendReceiptUploadLog(logRows) {
+  if (logRows.length === 0) return;
+
+  const auth = getOAuthClient();
+  const sheets = google.sheets({ version: "v4", auth });
+  const sheetName = getReceiptLogSheetName();
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: process.env.GOOGLE_SHEET_ID,
+    range: `${sheetName}!A:L`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: {
+      values: logRows,
+    },
+  });
+}
+
 module.exports = {
   appendVoteToSheet,
   getVoteHistory,
+  getUploadedReceiptAttachmentIds,
+  appendReceiptUploadLog,
 };
