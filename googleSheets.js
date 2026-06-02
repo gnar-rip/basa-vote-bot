@@ -29,6 +29,10 @@ function getOAuthClient() {
   return oAuth2Client;
 }
 
+function getVoteLogSheetName() {
+  return process.env.VOTE_LOG_SHEET_NAME || "voteLog";
+}
+
 function getReceiptLogSheetName() {
   return process.env.RECEIPT_LOG_SHEET_NAME || "receiptLog";
 }
@@ -44,10 +48,11 @@ async function appendVoteToSheet({
 }) {
   const auth = getOAuthClient();
   const sheets = google.sheets({ version: "v4", auth });
+  const sheetName = getVoteLogSheetName();
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: process.env.GOOGLE_SHEET_ID,
-    range: "Sheet1!A3:H",
+    range: `${sheetName}!A:H`,
     valueInputOption: "USER_ENTERED",
     requestBody: {
       values: [
@@ -71,10 +76,11 @@ async function appendVoteToSheet({
 async function getVoteHistory() {
     const auth = getOAuthClient();
     const sheets = google.sheets({ version: "v4", auth });
+    const sheetName = getVoteLogSheetName();
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEET_ID,
-      range: "Sheet1!A3:H",
+      range: `${sheetName}!A:H`,
     });
 
     const rows = response.data.values || [];
